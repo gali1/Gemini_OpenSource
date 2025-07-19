@@ -6,6 +6,7 @@ Provides installation configuration for the command line interface
 from setuptools import setup, find_packages
 from pathlib import Path
 import sys
+import os
 
 # Read README
 readme_file = Path(__file__).parent / "README.md"
@@ -24,14 +25,9 @@ if version_file.exists():
 if sys.version_info < (3, 8):
     sys.exit("Python 3.8 or higher is required")
 
-# Base requirements (CPU-only versions)
+# Base requirements (without PyTorch CPU-specific versions in setup.py)
 base_requirements = [
-    # Core dependencies
-    "torch>=2.0.0+cpu",
-    "torchvision>=0.15.0+cpu",
-    "torchaudio>=2.0.0+cpu",
-
-    # Model dependencies
+    # Core model dependencies (PyTorch will be handled separately)
     "einops>=0.7.0",
     "sentencepiece>=0.1.99",
     "transformers>=4.30.0",
@@ -40,7 +36,6 @@ base_requirements = [
     "rich>=13.0.0",
     "aiofiles>=23.0.0",
     "aiohttp>=3.8.0",
-    "asyncio-mqtt>=0.16.0",
 
     # Utility dependencies
     "click>=8.0.0",
@@ -50,10 +45,28 @@ base_requirements = [
     "chardet>=5.0.0",
     "psutil>=5.9.0",
 
-    # Optional but recommended
+    # Standard libraries
+    "numpy>=1.21.0",
+    "scipy>=1.9.0",
     "pillow>=9.0.0",
     "requests>=2.28.0",
     "packaging>=21.0",
+    "python-dateutil>=2.8.0",
+    "tqdm>=4.65.0",
+    "regex>=2023.6.3",
+    "urllib3>=2.0.0",
+    "certifi>=2023.0.0",
+]
+
+# Add colorama for Windows
+if sys.platform == "win32":
+    base_requirements.append("colorama>=0.4.6")
+
+# PyTorch requirements - handle separately due to index URL requirements
+pytorch_requirements = [
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    "torchaudio>=2.0.0",
 ]
 
 # Extra requirements for different use cases
@@ -62,11 +75,13 @@ extra_requirements = {
         "pytest>=7.0.0",
         "pytest-asyncio>=0.21.0",
         "pytest-cov>=4.0.0",
+        "pytest-mock>=3.10.0",
         "black>=23.0.0",
         "isort>=5.12.0",
         "flake8>=6.0.0",
         "mypy>=1.0.0",
         "pre-commit>=3.0.0",
+        "ipdb>=0.13.13",
     ],
     "test": [
         "pytest>=7.0.0",
@@ -74,25 +89,35 @@ extra_requirements = {
         "pytest-cov>=4.0.0",
         "pytest-mock>=3.10.0",
         "httpx>=0.24.0",
+        "responses>=0.23.0",
+        "freezegun>=1.2.2",
     ],
     "docs": [
         "sphinx>=6.0.0",
         "sphinx-rtd-theme>=1.2.0",
         "myst-parser>=2.0.0",
         "sphinx-autodoc-typehints>=1.23.0",
+        "sphinx-click>=4.4.0",
     ],
     "sandbox": [
         "docker>=6.0.0",
-        "podman-py>=4.0.0",
     ],
-    "all": [],  # Will be populated below
+    "performance": [
+        "line-profiler>=4.0.0",
+        "memory-profiler>=0.61.0",
+    ],
+    "full": [],  # Will be populated below
 }
 
-# Populate 'all' with all extra requirements
-extra_requirements["all"] = list(set(
+# Populate 'full' with all extra requirements
+extra_requirements["full"] = list(set(
     req for extra_list in extra_requirements.values()
     for req in extra_list if req != []
 ))
+
+# Add PyTorch to full requirements
+extra_requirements["pytorch"] = pytorch_requirements
+extra_requirements["full"].extend(pytorch_requirements)
 
 setup(
     name="gemini-cli",
@@ -159,19 +184,4 @@ setup(
     # Additional metadata
     maintainer="Gemini OpenSource Team",
     maintainer_email="team@gemini-opensource.dev",
-
-    # Dependency links for CPU-only torch
-    dependency_links=[
-        "https://download.pytorch.org/whl/cpu"
-    ],
-
-    # Options for different installation scenarios
-    options={
-        "bdist_wheel": {
-            "universal": False,
-        },
-        "build_ext": {
-            "inplace": True,
-        },
-    },
 )

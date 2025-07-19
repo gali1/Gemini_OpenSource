@@ -1,15 +1,10 @@
-# Gemini CLI Requirements - CPU Only
-# Core PyTorch (CPU-only versions)
---extra-index-url https://download.pytorch.org/whl/cpu
-torch>=2.0.0+cpu
-torchvision>=0.15.0+cpu
-torchaudio>=2.0.0+cpu
+# Gemini CLI Requirements
+# Note: Install PyTorch separately using: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 
 # Core model dependencies
 einops>=0.7.0
 sentencepiece>=0.1.99
 transformers>=4.30.0
-ring-attention-pytorch>=0.1.0
 
 # Zeta dependencies (for model architecture)
 zetascale>=2.0.0
@@ -21,7 +16,6 @@ click>=8.0.0
 # Async I/O
 aiofiles>=23.0.0
 aiohttp>=3.8.0
-asyncio>=3.4.3
 
 # Configuration and serialization
 pydantic>=2.0.0
@@ -30,7 +24,6 @@ toml>=0.10.0
 
 # File processing
 chardet>=5.0.0
-mimetypes-plus>=1.0.0
 
 # System monitoring
 psutil>=5.9.0
@@ -51,35 +44,22 @@ scipy>=1.9.0
 # Text processing
 regex>=2023.6.3
 
-# JSON handling
-orjson>=3.9.0
-
 # Progress bars and UI
 tqdm>=4.65.0
 
 # Date/time utilities
 python-dateutil>=2.8.0
 
-# Path utilities
-pathlib2>=2.3.7; python_version<"3.4"
+# Network utilities
+urllib3>=2.0.0
+certifi>=2023.0.0
 
-# Optional: Better terminal support
+# Terminal support
 colorama>=0.4.6; sys_platform=="win32"
 
 # Optional: Additional file format support
 openpyxl>=3.1.0
 pandas>=2.0.0
 
-# Optional: Network utilities
-urllib3>=2.0.0
-certifi>=2023.0.0
-
-# Optional: Cryptography
-cryptography>=41.0.0
-
 # Optional: Compression
 zstandard>=0.21.0
-
-# Development and debugging (minimal set)
-ipdb>=0.13.13
-line-profiler>=4.0.0
