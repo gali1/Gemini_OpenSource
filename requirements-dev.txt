@@ -1,0 +1,142 @@
+# Development Requirements for Gemini CLI
+# Include base requirements
+-r requirements.txt
+
+# Testing frameworks
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.0.0
+pytest-mock>=3.10.0
+pytest-xdist>=3.3.0
+pytest-sugar>=0.9.7
+pytest-clarity>=1.0.1
+
+# HTTP testing
+httpx>=0.24.0
+responses>=0.23.0
+
+# Code formatting and linting
+black>=23.0.0
+isort>=5.12.0
+flake8>=6.0.0
+flake8-docstrings>=1.7.0
+flake8-import-order>=0.18.0
+flake8-bugbear>=23.0.0
+
+# Type checking
+mypy>=1.0.0
+types-requests>=2.31.0
+types-PyYAML>=6.0.0
+types-chardet>=5.0.0
+types-psutil>=5.9.0
+
+# Code quality
+pylint>=2.17.0
+bandit>=1.7.5
+safety>=2.3.0
+vulture>=2.7
+
+# Pre-commit hooks
+pre-commit>=3.0.0
+
+# Documentation
+sphinx>=6.0.0
+sphinx-rtd-theme>=1.2.0
+myst-parser>=2.0.0
+sphinx-autodoc-typehints>=1.23.0
+sphinx-click>=4.4.0
+
+# Development tools
+ipython>=8.0.0
+ipdb>=0.13.13
+jupyter>=1.0.0
+notebook>=6.5.0
+
+# Performance profiling
+line-profiler>=4.0.0
+memory-profiler>=0.61.0
+py-spy>=0.3.14
+
+# Build tools
+build>=0.10.0
+twine>=4.0.0
+setuptools-scm>=7.0.0
+
+# Version management
+bump2version>=1.0.1
+
+# Testing utilities
+factory-boy>=3.2.1
+faker>=19.0.0
+freezegun>=1.2.2
+
+# Docker testing (optional)
+testcontainers>=3.7.0
+
+# Load testing
+locust>=2.15.0
+
+# Mock servers
+wiremock>=2.6.0
+
+# API documentation
+redoc-cli>=0.12.0
+
+# Code coverage reporting
+coverage[toml]>=7.0.0
+codecov>=2.1.13
+
+# Security scanning
+semgrep>=1.31.0
+
+# Dependency analysis
+pipdeptree>=2.9.0
+pip-audit>=2.6.0
+
+# Environment management
+python-dotenv>=1.0.0
+
+# Container tools (if using Docker for development)
+docker>=6.0.0
+docker-compose>=1.29.0
+
+# Git hooks and utilities
+gitpython>=3.1.32
+pre-commit-hooks>=4.4.0
+
+# Benchmarking
+pytest-benchmark>=4.0.0
+asv>=0.5.1
+
+# Data generation for testing
+mimesis>=11.1.0
+hypothesis>=6.82.0
+
+# Network testing
+pook>=1.4.0
+
+# Process management
+supervisor>=4.2.0
+
+# Development database (for testing)
+sqlalchemy>=2.0.0
+sqlite3; python_version>="3.0"
+
+# Monitoring and observability (dev)
+opentelemetry-api>=1.19.0
+opentelemetry-sdk>=1.19.0
+opentelemetry-instrumentation>=0.40b0
+
+# Development configuration
+python-decouple>=3.8
+configargparse>=1.7
+
+# Performance monitoring
+scalene>=1.5.26
+
+# Memory leak detection
+pympler>=0.9
+
+# Static analysis
+ruff>=0.0.287
+pyright>=1.1.0
