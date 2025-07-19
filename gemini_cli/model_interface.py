@@ -18,6 +18,7 @@ import logging
 from gemini_torch.model import Gemini
 from gemini_torch.tokenizer import MultimodalSentencePieceTokenizer
 from gemini_torch.long_gemini import LongGemini
+from gemini_torch.autoregressive_wrapper import AutoregressiveWrapper
 
 from .core.exceptions import ModelError, GeminiCLIError
 
@@ -94,9 +95,17 @@ class GeminiModelInterface:
     async def _initialize_tokenizer(self):
         """Initialize the tokenizer."""
         try:
-            tokenizer_name = self.config.get("tokenizerName", "hf-internal-testing/llama-tokenizer")
-            self.tokenizer = MultimodalSentencePieceTokenizer(tokenizer_name=tokenizer_name)
-            self.logger.info(f"Tokenizer initialized: {tokenizer_name}")
+            # Use local tokenizer model file
+            tokenizer_path = Path(__file__).parent.parent / "tokenizer" / "tokenizer.model"
+
+            if tokenizer_path.exists():
+                self.tokenizer = MultimodalSentencePieceTokenizer(model_path=str(tokenizer_path))
+                self.logger.info(f"Tokenizer initialized from local file: {tokenizer_path}")
+            else:
+                # Fallback to downloading
+                tokenizer_name = self.config.get("tokenizerName", "hf-internal-testing/llama-tokenizer")
+                self.tokenizer = MultimodalSentencePieceTokenizer(tokenizer_name=tokenizer_name)
+                self.logger.info(f"Tokenizer initialized by downloading: {tokenizer_name}")
 
         except Exception as e:
             self.logger.error(f"Failed to initialize tokenizer: {e}")
@@ -109,9 +118,17 @@ class GeminiModelInterface:
             model_type = self.config.get("modelType", "standard")
 
             if model_type == "long":
-                self.model = LongGemini(**self.model_params)
+                base_model = LongGemini(**self.model_params)
             else:
-                self.model = Gemini(**self.model_params)
+                base_model = Gemini(**self.model_params)
+
+            # Wrap with autoregressive wrapper
+            self.model = AutoregressiveWrapper(
+                base_model,
+                ignore_index=-100,
+                pad_value=self.tokenizer.pad_id if self.tokenizer else 0,
+                max_seq_len=self.model_params["max_seq_len"]
+            )
 
             self.model.to(self.device)
             self.model.eval()
@@ -121,7 +138,8 @@ class GeminiModelInterface:
             if model_path and Path(model_path).exists():
                 await self._load_model_weights(model_path)
 
-            self.logger.info(f"Model initialized with {sum(p.numel() for p in self.model.parameters())} parameters")
+            total_params = sum(p.numel() for p in self.model.parameters())
+            self.logger.info(f"Model initialized with {total_params:,} parameters")
 
         except Exception as e:
             self.logger.error(f"Failed to initialize model: {e}")
@@ -190,9 +208,14 @@ Always be helpful, accurate, and safe. Ask for clarification when needed and exp
             input_text = self._format_messages_for_model(messages)
             input_tokens = self._tokenize_input(input_text)
 
+            # Calculate max new tokens
+            max_new_tokens = min(512, self.max_tokens - input_tokens.shape[1])
+            if max_new_tokens <= 0:
+                raise ModelError("Input sequence too long")
+
             # Generate response
             with torch.no_grad():
-                output_tokens = await self._generate_tokens(input_tokens)
+                output_tokens = await self._generate_tokens(input_tokens, max_new_tokens)
 
             # Decode response
             response_text = self._decode_output(output_tokens)
@@ -201,12 +224,14 @@ Always be helpful, accurate, and safe. Ask for clarification when needed and exp
             tool_calls, cleaned_response = self._extract_tool_calls(response_text)
 
             # Calculate token usage
+            input_length = input_tokens.shape[1] if input_tokens.dim() > 1 else len(input_tokens)
+            output_length = output_tokens.shape[1] if output_tokens.dim() > 1 else len(output_tokens)
+
             usage = {
-                "input_tokens": len(input_tokens[0]) if input_tokens.dim() > 1 else len(input_tokens),
-                "output_tokens": len(output_tokens[0]) if output_tokens.dim() > 1 else len(output_tokens),
-                "total_tokens": 0
+                "input_tokens": input_length,
+                "output_tokens": output_length - input_length,
+                "total_tokens": output_length
             }
-            usage["total_tokens"] = usage["input_tokens"] + usage["output_tokens"]
 
             result = {
                 "content": cleaned_response,
@@ -325,66 +350,17 @@ Always be helpful, accurate, and safe. Ask for clarification when needed and exp
             self.logger.error(f"Tokenization failed: {e}")
             raise ModelError(f"Tokenization failed: {e}")
 
-    async def _generate_tokens(self, input_tokens: torch.Tensor) -> torch.Tensor:
+    async def _generate_tokens(self, input_tokens: torch.Tensor, max_new_tokens: int) -> torch.Tensor:
         """Generate tokens using the model."""
         try:
-            batch_size, seq_len = input_tokens.shape
-            max_new_tokens = min(512, self.max_tokens - seq_len)
-
-            generated_tokens = input_tokens.clone()
-
-            for _ in range(max_new_tokens):
-                # Forward pass
-                with torch.no_grad():
-                    if hasattr(self.model, 'generate'):
-                        # If model has a generate method
-                        outputs = self.model.generate(
-                            generated_tokens,
-                            max_length=generated_tokens.shape[1] + 1,
-                            temperature=self.temperature,
-                            top_p=self.top_p,
-                            do_sample=True
-                        )
-                        generated_tokens = outputs
-                    else:
-                        # Manual generation
-                        logits = self.model(generated_tokens)
-
-                        # Apply temperature
-                        if self.temperature != 1.0:
-                            logits = logits / self.temperature
-
-                        # Apply top-k filtering
-                        if self.top_k > 0:
-                            indices_to_remove = logits < torch.topk(logits, self.top_k, dim=-1)[0][..., -1, None]
-                            logits[indices_to_remove] = -float('inf')
-
-                        # Apply top-p filtering
-                        if self.top_p < 1.0:
-                            sorted_logits, sorted_indices = torch.sort(logits, descending=True, dim=-1)
-                            cumulative_probs = torch.cumsum(F.softmax(sorted_logits, dim=-1), dim=-1)
-
-                            sorted_indices_to_remove = cumulative_probs > self.top_p
-                            sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[..., :-1].clone()
-                            sorted_indices_to_remove[..., 0] = 0
-
-                            indices_to_remove = sorted_indices_to_remove.scatter(dim=-1, index=sorted_indices, src=sorted_indices_to_remove)
-                            logits[indices_to_remove] = -float('inf')
-
-                        # Sample next token
-                        probs = F.softmax(logits[:, -1, :], dim=-1)
-                        next_token = torch.multinomial(probs, num_samples=1)
-
-                        # Append to sequence
-                        generated_tokens = torch.cat([generated_tokens, next_token], dim=1)
-
-                # Check for end of sequence or special tokens
-                if next_token.item() in [self.tokenizer.eos_id, self.tokenizer.pad_id]:
-                    break
-
-                # Yield control to allow other operations
-                if (_ + 1) % 10 == 0:
-                    await asyncio.sleep(0)
+            # Use the autoregressive wrapper's generate method
+            generated_tokens = self.model.generate(
+                start_tokens=input_tokens,
+                seq_len=max_new_tokens,  # This was the missing parameter!
+                temperature=self.temperature,
+                top_k=self.top_k,
+                top_p=self.top_p
+            )
 
             return generated_tokens
 
@@ -606,8 +582,8 @@ Always be helpful, accurate, and safe. Ask for clarification when needed and exp
 
             # Forward through model with multimodal inputs
             with torch.no_grad():
-                if hasattr(self.model, 'forward') and text_tokens is not None:
-                    output = self.model(
+                if hasattr(self.model.model, 'forward') and text_tokens is not None:
+                    output = self.model.model(
                         text=text_tokens,
                         img=image,
                         audio=audio,
@@ -615,7 +591,7 @@ Always be helpful, accurate, and safe. Ask for clarification when needed and exp
                     )
                 else:
                     # Fallback to text-only
-                    output = self.model(text_tokens)
+                    output = self.model.model(text_tokens)
 
             return output
 

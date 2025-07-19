@@ -1026,7 +1026,7 @@ class AttentionLayers(nn.Module):
         depth,
         heads=8,
         causal=False,
-        cross_attend=False,
+        cross_attend=True,
         only_cross=False,
         use_scalenorm=False,
         use_rmsnorm=False,

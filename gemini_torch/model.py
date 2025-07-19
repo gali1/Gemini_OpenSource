@@ -2,7 +2,7 @@ import torch
 from torch import nn
 from torch.nn import Module
 from zeta.nn import audio_to_text, img_to_text, video_to_text
-from gemini_torch/autoregressive_wrapper.py import AutoregressiveWrapper
+from gemini_torch.autoregressive_wrapper import AutoregressiveWrapper
 
 from gemini_torch.transformer import Decoder, Transformer
 
@@ -142,21 +142,28 @@ class Gemini(Module):
 
         Output shape: [batch, seq_len, dim]
         """
-        assert (
-            (img is not None and audio is not None)
-            or (img is not None and video is not None)
-            or (audio is not None and video is not None)
-        ), "At least two of the inputs (img, audio, video) must be provided."
+        # Handle text-only case
+        if text is not None and img is None and audio is None and video is None:
+            return self.decoder(text, *args, **kwargs)
+
+        # For multimodal inputs, ensure at least two modalities are provided
+        modal_count = sum([x is not None for x in [img, audio, video]])
+        if modal_count < 2:
+            raise ValueError("At least two of the inputs (img, audio, video) must be provided for multimodal processing.")
+
+        fused = None
 
         if img is not None:
             # Image dimensions
             img_b, img_c, img_h, img_w = img.shape
 
-            # img = img_to_text(img, self.patches, self.patch_size, self.dim, True)
+            # Convert image to text tokens
             img = img_to_text(img, self.max_seq_len, self.dim, True)
 
             if self.post_modal_transform_norm:
                 img = self.pmt_norm(img)
+
+            fused = img
 
         if audio is not None:
             # Audio dimensions
@@ -167,22 +174,27 @@ class Gemini(Module):
             if self.post_modal_transform_norm:
                 audio = self.pmt_norm(audio)
 
+            if fused is not None:
+                fused = torch.cat((fused, audio), dim=1)
+            else:
+                fused = audio
+
         if video is not None:
             # Video dimensions
             video_b, video_c, video_f, video_h, video_w = video.shape
 
             video = video_to_text(video, self.max_seq_len, self.dim, True)
 
-        # Fuse layers
-        if img is not None and audio is not None:
-            fused = torch.cat((img, audio), dim=1)
-        elif img is not None and video is not None:
-            fused = torch.cat((img, video), dim=1)
-        elif audio is not None and video is not None:
-            fused = torch.cat((audio, video), dim=1)
+            if self.post_modal_transform_norm:
+                video = self.pmt_norm(video)
+
+            if fused is not None:
+                fused = torch.cat((fused, video), dim=1)
+            else:
+                fused = video
 
         # Post fusion layernorm for stability.
-        if self.post_fusion_norm:
+        if self.post_fusion_norm and fused is not None:
             fused = self.psf_norm(fused)
 
         return self.decoder(text, context=fused, *args, **kwargs)

@@ -1,159 +1,128 @@
+#!/usr/bin/env python3
 """
-Setup script for Gemini CLI
-Provides installation configuration for the command line interface
+Setup configuration for Gemini CLI
+Comprehensive package setup with all dependencies and entry points
 """
 
 from setuptools import setup, find_packages
-from pathlib import Path
-import sys
 import os
+from pathlib import Path
 
-# Read README
-readme_file = Path(__file__).parent / "README.md"
-long_description = readme_file.read_text(encoding="utf-8") if readme_file.exists() else ""
-
-# Read version from __init__.py
-version_file = Path(__file__).parent / "gemini_cli" / "__init__.py"
-version = "1.0.0"  # Default version
+# Read version from version.py
+version_file = Path(__file__).parent / "gemini_cli" / "utils" / "version.py"
+version_dict = {}
 if version_file.exists():
-    for line in version_file.read_text().splitlines():
-        if line.startswith("__version__"):
-            version = line.split("=")[1].strip().strip('"').strip("'")
-            break
+    with open(version_file) as f:
+        exec(f.read(), version_dict)
+    version = version_dict.get("__version__", "1.0.0")
+else:
+    version = "1.0.0"
 
-# Python version check
-if sys.version_info < (3, 8):
-    sys.exit("Python 3.8 or higher is required")
+# Read long description from README
+readme_file = Path(__file__).parent / "README.md"
+long_description = ""
+if readme_file.exists():
+    with open(readme_file, encoding="utf-8") as f:
+        long_description = f.read()
 
-# Base requirements (without PyTorch CPU-specific versions in setup.py)
-base_requirements = [
-    # Core model dependencies (PyTorch will be handled separately)
-    "einops>=0.7.0",
-    "sentencepiece>=0.1.99",
-    "transformers>=4.30.0",
+# Core dependencies with proper version constraints
+install_requires = [
+    # Core async and HTTP
+    "aiohttp>=3.8.0,<4.0.0",
+    "aiofiles>=22.1.0,<24.0.0",
+    "async-timeout>=4.0.0,<5.0.0; python_version<'3.11'",
 
-    # CLI dependencies
-    "rich>=13.0.0",
-    "aiofiles>=23.0.0",
-    "aiohttp>=3.9.0",
-    "async-timeout; python_version<'3.11'",
+    # PyTorch ecosystem
+    "torch>=2.0.0,<3.0.0",
+    "torchvision>=0.15.0,<1.0.0",
+    "torchaudio>=2.0.0,<3.0.0",
 
-    # Utility dependencies
-    "click>=8.0.0",
-    "pydantic>=2.0.0",
-    "pyyaml>=6.0",
-    "toml>=0.10.0",
-    "chardet>=5.0.0",
-    "psutil>=5.9.0",
+    # ML and AI dependencies
+    "einops>=0.6.0,<1.0.0",
+    "transformers>=4.30.0,<5.0.0",
+    "sentencepiece>=0.1.99,<1.0.0",
+    "tokenizers>=0.13.0,<1.0.0",
 
-    # Standard libraries
-    "numpy>=1.21.0",
-    "scipy>=1.9.0",
-    "pillow>=9.0.0",
-    "requests>=2.28.0",
-    "packaging>=21.0",
-    "python-dateutil>=2.8.0",
-    "tqdm>=4.65.0",
-    "regex>=2023.6.3",
-    "urllib3>=2.0.0",
-    "certifi>=2023.0.0",
+    # CLI and interface
+    "rich>=13.0.0,<14.0.0",
+    "click>=8.0.0,<9.0.0",
+    "prompt-toolkit>=3.0.0,<4.0.0",
+
+    # Data processing
+    "numpy>=1.21.0,<2.0.0",
+    "pandas>=1.5.0,<3.0.0",
+    "pillow>=9.0.0,<11.0.0",
+
+    # Utilities
+    "requests>=2.28.0,<3.0.0",
+    "chardet>=5.0.0,<6.0.0",
+    "python-magic>=0.4.27,<1.0.0",
+    "psutil>=5.9.0,<6.0.0",
+
+    # Configuration and serialization
+    "pyyaml>=6.0.0,<7.0.0",
+    "toml>=0.10.0,<1.0.0",
+    "configparser>=5.3.0,<6.0.0",
+
+    # Advanced features
+    "zeta-torch>=2.0.0,<3.0.0",
+    "ring-attention-pytorch>=0.1.0,<1.0.0",
 ]
 
-# Add colorama for Windows
-if sys.platform == "win32":
-    base_requirements.append("colorama>=0.4.6")
-
-# PyTorch requirements - handle separately due to index URL requirements
-pytorch_requirements = [
-    "torch>=2.0.0",
-    "torchvision>=0.15.0",
-    "torchaudio>=2.0.0",
-]
-
-# Extra requirements for different use cases
-extra_requirements = {
+# Optional dependencies for enhanced features
+extras_require = {
     "dev": [
-        "pytest>=7.0.0",
-        "pytest-asyncio>=0.21.0",
-        "pytest-cov>=4.0.0",
-        "pytest-mock>=3.10.0",
-        "black>=23.0.0",
-        "isort>=5.12.0",
-        "flake8>=6.0.0",
-        "mypy>=1.0.0",
-        "pre-commit>=3.0.0",
-        "ipdb>=0.13.13",
-    ],
-    "test": [
-        "pytest>=7.0.0",
-        "pytest-asyncio>=0.21.0",
-        "pytest-cov>=4.0.0",
-        "pytest-mock>=3.10.0",
-        "httpx>=0.24.0",
-        "responses>=0.23.0",
-        "freezegun>=1.2.2",
+        "pytest>=7.0.0,<8.0.0",
+        "pytest-asyncio>=0.21.0,<1.0.0",
+        "pytest-cov>=4.0.0,<5.0.0",
+        "black>=23.0.0,<24.0.0",
+        "isort>=5.12.0,<6.0.0",
+        "flake8>=6.0.0,<7.0.0",
+        "mypy>=1.0.0,<2.0.0",
+        "pre-commit>=3.0.0,<4.0.0",
     ],
     "docs": [
-        "sphinx>=6.0.0",
-        "sphinx-rtd-theme>=1.2.0",
-        "myst-parser>=2.0.0",
-        "sphinx-autodoc-typehints>=1.23.0",
-        "sphinx-click>=4.4.0",
+        "sphinx>=6.0.0,<8.0.0",
+        "sphinx-rtd-theme>=1.2.0,<2.0.0",
+        "myst-parser>=1.0.0,<3.0.0",
+    ],
+    "audio": [
+        "librosa>=0.10.0,<1.0.0",
+        "soundfile>=0.12.0,<1.0.0",
+        "scipy>=1.10.0,<2.0.0",
+    ],
+    "vision": [
+        "opencv-python>=4.7.0,<5.0.0",
+        "matplotlib>=3.7.0,<4.0.0",
+        "seaborn>=0.12.0,<1.0.0",
     ],
     "sandbox": [
-        "docker>=6.0.0",
+        "docker>=6.0.0,<7.0.0",
+        "kubernetes>=26.0.0,<28.0.0",
     ],
-    "performance": [
-        "line-profiler>=4.0.0",
-        "memory-profiler>=0.61.0",
+    "telemetry": [
+        "opentelemetry-api>=1.17.0,<2.0.0",
+        "opentelemetry-sdk>=1.17.0,<2.0.0",
+        "opentelemetry-exporter-otlp>=1.17.0,<2.0.0",
     ],
-    "full": [],  # Will be populated below
+    "full": [
+        # Include all optional dependencies
+    ],
 }
 
-# Populate 'full' with all extra requirements
-extra_requirements["full"] = list(set(
-    req for extra_list in extra_requirements.values()
-    for req in extra_list if req != []
-))
-
-# Add PyTorch to full requirements
-extra_requirements["pytorch"] = pytorch_requirements
-extra_requirements["full"].extend(pytorch_requirements)
+# Add all optional dependencies to 'full'
+extras_require["full"] = sum(extras_require.values(), [])
 
 setup(
     name="gemini-cli",
     version=version,
-    description="Interactive AI assistant powered by Gemini OpenSource",
+    author="Gemini OpenSource Team",
+    author_email="team@gemini-opensource.org",
+    description="Interactive AI assistant command line interface powered by Gemini OpenSource",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    author="Gemini OpenSource Team",
-    author_email="team@gemini-opensource.dev",
     url="https://github.com/kyegomez/Gemini",
-    project_urls={
-        "Homepage": "https://github.com/kyegomez/Gemini",
-        "Documentation": "https://github.com/kyegomez/Gemini/docs",
-        "Source": "https://github.com/kyegomez/Gemini",
-        "Tracker": "https://github.com/kyegomez/Gemini/issues",
-    },
-    packages=find_packages(exclude=["tests", "tests.*", "docs", "examples"]),
-    include_package_data=True,
-    package_data={
-        "gemini_cli": [
-            "data/*.json",
-            "themes/*.json",
-            "templates/*.txt",
-            "configs/*.yaml",
-        ],
-    },
-    python_requires=">=3.8",
-    install_requires=base_requirements,
-    extras_require=extra_requirements,
-    entry_points={
-        "console_scripts": [
-            "gemini-cli=gemini_cli.main:main",
-            "gcli=gemini_cli.main:main",  # Short alias
-        ],
-    },
+    packages=find_packages(include=["gemini_cli*", "gemini_torch*"]),
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
@@ -170,19 +139,39 @@ setup(
         "Topic :: Software Development :: Libraries :: Python Modules",
         "Topic :: System :: Shells",
         "Topic :: Utilities",
-        "Environment :: Console",
-        "Intended Audience :: End Users/Desktop",
     ],
-    keywords=[
-        "ai", "cli", "gemini", "assistant", "chatbot", "llm",
-        "machine-learning", "natural-language-processing", "pytorch",
-        "command-line", "interactive", "automation", "tools"
-    ],
-    license="MIT",
+    python_requires=">=3.8",
+    install_requires=install_requires,
+    extras_require=extras_require,
+    entry_points={
+        "console_scripts": [
+            "gemini-cli=gemini_cli.main:main",
+            "gcli=gemini_cli.main:main",
+            "gemini=gemini_cli.main:main",
+        ],
+    },
+    include_package_data=True,
+    package_data={
+        "gemini_cli": [
+            "core/*.py",
+            "utils/*.py",
+            "data/*",
+            "templates/*",
+            "themes/*",
+        ],
+        "gemini_torch": [
+            "*.py",
+            "data/*",
+        ],
+    },
     zip_safe=False,
-    platforms=["any"],
-
-    # Additional metadata
-    maintainer="Gemini OpenSource Team",
-    maintainer_email="team@gemini-opensource.dev",
+    keywords=[
+        "ai", "cli", "assistant", "gemini", "chat", "llm", "pytorch",
+        "multimodal", "interactive", "shell", "automation", "tools"
+    ],
+    project_urls={
+        "Bug Reports": "https://github.com/kyegomez/Gemini/issues",
+        "Source": "https://github.com/kyegomez/Gemini",
+        "Documentation": "https://github.com/kyegomez/Gemini/blob/main/README.md",
+    },
 )
