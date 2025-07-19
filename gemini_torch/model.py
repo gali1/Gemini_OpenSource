@@ -2,7 +2,7 @@ import torch
 from torch import nn
 from torch.nn import Module
 from zeta.nn import audio_to_text, img_to_text, video_to_text
-from zeta.structs import AutoregressiveWrapper
+from gemini_torch/autoregressive_wrapper.py import AutoregressiveWrapper
 
 from gemini_torch.transformer import Decoder, Transformer
 

@@ -35,7 +35,8 @@ base_requirements = [
     # CLI dependencies
     "rich>=13.0.0",
     "aiofiles>=23.0.0",
-    "aiohttp>=3.8.0",
+    "aiohttp>=3.9.0",
+    "async-timeout; python_version<'3.11'",
 
     # Utility dependencies
     "click>=8.0.0",

@@ -13,9 +13,11 @@ zetascale>=2.0.0
 rich>=13.0.0
 click>=8.0.0
 
-# Async I/O
+# Async I/O with proper timeout handling
 aiofiles>=23.0.0
-aiohttp>=3.8.0
+aiohttp>=3.9.0
+async-timeout; python_version<"3.11"
+asyncio>=3.4.3
 
 # Configuration and serialization
 pydantic>=2.0.0
@@ -63,3 +65,4 @@ pandas>=2.0.0
 
 # Optional: Compression
 zstandard>=0.21.0
+
